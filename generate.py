@@ -6,6 +6,7 @@ import docx2txt
 import pandas as pd
 import os
 from gauge import gauge
+import copy
 
 def image_lookup(doc):
     # Adapted from https://stackoverflow.com/a/61331396
@@ -67,6 +68,7 @@ print(df)
 LEVELS = ['Low','Low to medium','Medium','Medium to High','High']
 
 for i, row in df.iterrows():
+    doc = copy.deepcopy(template)
     if i == 0:
         continue
     number = row[0]
@@ -81,7 +83,7 @@ for i, row in df.iterrows():
           colors='RdYlGn',
           arrow=row["V2"] / 2,
           fname=image_filename)
-    for para in template.paragraphs:
+    for para in doc.paragraphs:
         if "…V1" in para.text:
             para.text = para.text.replace("…V1", V1)
         if "***V2" in para.text:
@@ -109,5 +111,5 @@ for i, row in df.iterrows():
             doc5_paras = doc5_lookup[number]
             for other_para in doc5_paras:
                 para.insert_paragraph_before(other_para.text, style=other_para.style)
-    template.save(filename + ".docx")
+    doc.save(filename + ".docx")
     print(f"{filename} saved")
