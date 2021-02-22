@@ -1,13 +1,54 @@
 #!/usr/bin/env python3
 
-from docx import Document
+import docx
+from docx.shared import Cm
+import docx2txt
 import pandas as pd
 import os
 from gauge import gauge
 
+def image_lookup(doc):
+    # Adapted from https://stackoverflow.com/a/61331396
+
+    lookup = {}
+
+    img_path = doc.replace('.docx','')
+    os.makedirs(img_path, exist_ok=True)
+
+    # Extract the images to img_folder/
+    docx2txt.process(doc, img_path)
+
+    # Open your .docx document
+    doc = docx.Document(doc)
+
+    # Save all 'rId:filenames' relationships in an dictionary named rels
+    rels = {}
+    for r in doc.part.rels.values():
+        if isinstance(r._target, docx.parts.image.ImagePart):
+            rels[r.rId] = os.path.basename(r._target.partname)
+
+    # Then process your text
+    for paragraph in doc.paragraphs:
+        # If you find an image
+        if paragraph.text.strip():
+            bits = paragraph.text.strip().split("\t")
+            number = int(bits[0])
+        if 'Graphic' in paragraph._p.xml:
+            # Get the rId of the image
+            for rId in rels:
+                if f'"{rId}"' in paragraph._p.xml:
+                    # Your image will be in os.path.join(img_path, rels[rId])
+                    #print(rels[rId])
+                    lookup[number] = os.path.join(img_path, rels[rId])
+    return lookup
+
 os.makedirs("output", exist_ok=True)
 
-template = Document('input/Personalised report template sent to Nick e centre.docx')
+template = docx.Document('input/Personalised report template sent to Nick e centre.docx')
+doc2_map = image_lookup("input/Required document 2 - Knowledge about each technology.docx")
+doc3_map = image_lookup("input/Required document 3 - Technology implementation level.docx")
+doc4_map = image_lookup("input/Required document 4 - Technology readiness level on each indicator.docx")
+
 df = pd.read_excel("input/Required document 1 - Data spreadsheet for e-research center.xlsx")
 print(df)
 
@@ -35,11 +76,23 @@ for i, row in df.iterrows():
             para.text = para.text.replace("***V2", V2)
         if "***V3" in para.text:
             para.text = para.text.replace("***V3", V3)
-        if para.text == "Diagram to show the score of the company on average (V2) and the score of the industry on average (V4).":
+        if para.text.strip() == "Diagram to show the score of the company on average (V2) and the score of the industry on average (V4).":
             para.text = ""
             run = para.add_run()
             run.add_picture(image_filename)
-        if "Diagram" in para.text:
+        if para.text.strip() == "Diagram from document 2":
+            para.text = ""
+            run = para.add_run()
+            run.add_picture(doc2_map[number])
+        if para.text.strip() == "Diagram from document 3":
+            para.text = ""
+            run = para.add_run()
+            run.add_picture(doc3_map[number])
+        if para.text.strip() == "Diagram from document 4":
+            para.text = ""
+            run = para.add_run()
+            run.add_picture(doc4_map[number], width=Cm(16))
+        if "document" in para.text:
             print(para.text)
     template.save(filename + ".docx")
     print(f"{filename} saved")
