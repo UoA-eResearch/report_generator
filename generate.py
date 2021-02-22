@@ -49,6 +49,18 @@ doc2_map = image_lookup("input/Required document 2 - Knowledge about each techno
 doc3_map = image_lookup("input/Required document 3 - Technology implementation level.docx")
 doc4_map = image_lookup("input/Required document 4 - Technology readiness level on each indicator.docx")
 
+doc5 = docx.Document("input/Required document 5 - Weakness and improvements on your technology readiness.docx")
+doc5.paragraphs[0].runs[0].text = "1\tAhmed" # Fix weirdness at start of document
+doc5_lookup = {}
+for para in doc5.paragraphs:
+    if para.runs and para.runs[0].font.highlight_color:
+        bits = para.text.split("\t")
+        number = int(bits[0])
+    else:
+        if number not in doc5_lookup:
+            doc5_lookup[number] = []
+        doc5_lookup[number].append(para)
+
 df = pd.read_excel("input/Required document 1 - Data spreadsheet for e-research center.xlsx")
 print(df)
 
@@ -92,8 +104,10 @@ for i, row in df.iterrows():
             para.text = ""
             run = para.add_run()
             run.add_picture(doc4_map[number], width=Cm(16))
-        if "document" in para.text:
-            print(para.text)
+        if para.text.strip() == "Texts from document 5":
+            para.text = ""
+            doc5_paras = doc5_lookup[number]
+            for other_para in doc5_paras:
+                para.insert_paragraph_before(other_para.text, style=other_para.style)
     template.save(filename + ".docx")
     print(f"{filename} saved")
-    exit(1)
