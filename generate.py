@@ -11,6 +11,8 @@ import copy
 def image_lookup(doc):
     # Adapted from https://stackoverflow.com/a/61331396
 
+    # Saves the images from a doc to disk, and returns a lookup dictionary mapping number to filename
+
     lookup = {}
 
     img_path = doc.replace('.docx','')
@@ -43,18 +45,18 @@ def image_lookup(doc):
                     lookup[number] = os.path.join(img_path, rels[rId])
     return lookup
 
-os.makedirs("output", exist_ok=True)
+os.makedirs("output", exist_ok=True) # Create output folder if necessary
 
-template = docx.Document('input/Personalised report template sent to Nick e centre.docx')
+template = docx.Document('input/Personalised report template sent to Nick e centre.docx') # Load template
 doc2_map = image_lookup("input/Required document 2 - Knowledge about each technology.docx")
 doc3_map = image_lookup("input/Required document 3 - Technology implementation level.docx")
 doc4_map = image_lookup("input/Required document 4 - Technology readiness level on each indicator.docx")
 
 doc5 = docx.Document("input/Required document 5 - Weakness and improvements on your technology readiness.docx")
 doc5.paragraphs[0].runs[0].text = "1\tAhmed" # Fix weirdness at start of document
-doc5_lookup = {}
+doc5_lookup = {} # A dictionary mapping number to a list of paragraphs
 for para in doc5.paragraphs:
-    if para.runs and para.runs[0].font.highlight_color:
+    if para.runs and para.runs[0].font.highlight_color: # Highlight indicates number and name
         bits = para.text.split("\t")
         number = int(bits[0])
     else:
@@ -68,17 +70,21 @@ print(df)
 LEVELS = ['Low','Low to medium','Medium','Medium to High','High']
 
 for i, row in df.iterrows():
-    doc = copy.deepcopy(template)
-    if i == 0:
+    doc = copy.deepcopy(template) # Deepcopy to ensure we don't modify the template
+    if i == 0: # First rows is alternative headers
         continue
     number = row[0]
-    V1 = row["V1"]
+    if pd.isna(row["V1"]):
+        V1 = ""
+    else:
+        V1 = row["V1"]
     V2 = str(round(row["V2"], 1))
     V3 = row["V3"]
     V4 = str(round(row["V4 (constant)"], 1))
     print(number, V1, V2, V3, V4)
     filename = f'output/{number}_{V1}'
     image_filename = filename + ".png"
+    # Save a gauge plot to a file
     gauge(labels=['Low', '', 'Medium', '', 'High'],
           colors='RdYlGn',
           arrow=row["V2"] / 2,
@@ -93,7 +99,7 @@ for i, row in df.iterrows():
         if para.text.strip() == "Diagram to show the score of the company on average (V2) and the score of the industry on average (V4).":
             para.text = ""
             run = para.add_run()
-            run.add_picture(image_filename)
+            run.add_picture(image_filename) # Insert gauge plot
         if para.text.strip() == "Diagram from document 2":
             para.text = ""
             run = para.add_run()
